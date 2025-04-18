@@ -1,8 +1,5 @@
-import {
-  startRegistration,
-  startAuthentication,
-} from "@simplewebauthn/browser";
-
+import { startAuthentication } from "@simplewebauthn/browser";
+import { environment } from "./constants";
 const elemBegin = document.getElementById("btnAuth");
 const elemSuccess = document.getElementById("successAuth");
 const elemError = document.getElementById("errorAuth");
@@ -13,21 +10,24 @@ if (!elemBegin || !elemSuccess || !elemError) {
 
 // Start registration when the user clicks a button
 elemBegin.addEventListener("click", async () => {
-  const userID = "123456";
   elemSuccess.innerHTML = "";
   elemError.innerHTML = "";
 
   // GET authentication options from the endpoint that calls
   // @simplewebauthn/server -> generateAuthenticationOptions()
   const resp = await fetch(
-    "https://rast.more-commerce.com/generate-authentication-options/" + userID
+    `https://${environment.domain}/generate-authentication-options/${environment.userID}`
   );
   const optionsJSON = await resp.json();
   console.log("optionsJSON: ", optionsJSON);
+  if (!optionsJSON.verified) {
+    elemSuccess.innerHTML = optionsJSON.message;
+    return;
+  }
   let asseResp;
   try {
     // Pass the options to the authenticator and wait for a response
-    asseResp = await startAuthentication({ optionsJSON });
+    asseResp = await startAuthentication({ optionsJSON: optionsJSON.options });
   } catch (error) {
     // Some basic error handling
     elemError.innerText = error;
@@ -37,8 +37,9 @@ elemBegin.addEventListener("click", async () => {
   // POST the response to the endpoint that calls
   // @simplewebauthn/server -> verifyAuthenticationResponse()
   console.log("asseResp: ", asseResp);
+  environment.options = optionsJSON.options;
   const verificationResp = await fetch(
-    "https://rast.more-commerce.com/verify-authentication/" + userID,
+    `https://${environment.domain}/verify-authentication/${environment.userID}`,
     {
       method: "POST",
       headers: {
